@@ -10,9 +10,7 @@ const GPIO_LED: u8 = 23;
 // BCM GPIO 16 is tied to physical pin 36.
 const GPIO_PIR: u8 = 16;
 
-fn main() -> Result<(), Box<dyn Error>> {
-    println!("Blinking LED based on PIR input in a {}.", DeviceInfo::new()?.model());
-
+fn occupancy_manager() -> Result<(), Box<dyn Error>> {
     // Set pin 23 as output pin
     let mut pin_led = Gpio::new()?.get(GPIO_LED)?.into_output();
 
@@ -30,4 +28,10 @@ fn main() -> Result<(), Box<dyn Error>> {
             pin_led.set_low();
         }
     }
+}
+
+
+fn main() -> Result<(), Box<dyn Error>> {
+    println!("Blinking LED based on PIR input in a {}.", DeviceInfo::new()?.model());
+    occupancy_manager()
 }
