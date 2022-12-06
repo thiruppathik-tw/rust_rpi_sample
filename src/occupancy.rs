@@ -1,7 +1,7 @@
 use std::error::Error;
 
 use rppal::gpio::{Gpio};
-use rppal::gpio::Error as GpioError;
+use rppal::gpio::Error as OccupancyError;
 use rppal::system::DeviceInfo;
 
 // Gpio uses BCM pin numbering.
@@ -11,19 +11,22 @@ const GPIO_LED: u8 = 23;
 // BCM GPIO 16 is tied to physical pin 36.
 const GPIO_PIR: u8 = 16;
 
-pub fn device_info() {
+pub fn device_info() -> String {
     let d = DeviceInfo::new();
     if d.is_ok() {
+        let device = d.unwrap().model().to_string();
         println!(
             "Blinking LED based on PIR input in a {}.",
-            d.unwrap().model()
+            device
         );
+        return device;
     } else {
         println!("Error: {}", d.unwrap_err());
+        return "UnknownDevice".to_string();
     }
 }
 
-pub fn occupancy_status() -> Result<bool, GpioError>{
+pub fn occupancy_status() -> Result<bool, OccupancyError>{
     // Set pin 23 as output pin
     let mut pin_led = Gpio::new()?.get(GPIO_LED)?.into_output();
 
