@@ -1,14 +1,7 @@
-use std::{error::Error, thread, time::Duration};
-
+mod ecu_server;
 mod occupancy;
 
-fn main() -> Result<(), Box<dyn Error>> {
-    occupancy::device_info();
-    loop {
-        thread::sleep(Duration::from_millis(1000));
-        println!(
-            "Current occupancy status: {}",
-            occupancy::occupancy_status()?
-        );
-    }
+fn main() {
+    println!("Starting server.");
+    let _r = ecu_server::server_init();
 }
