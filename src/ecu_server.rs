@@ -4,11 +4,12 @@ use std::net::{TcpListener, TcpStream};
 use std::{io, thread, time::Duration};
 
 use crate::occupancy;
+use rppal::gpio::Error as OccupancyError;
 
 #[allow(unused)]
 enum EcuError {
     UnknownRequest,
-    FunctionalError(occupancy::OccupancyError),
+    FunctionalError(OccupancyError),
 }
 
 fn get_request_word(request: &String, i: usize) -> (String, usize) {
