@@ -1,6 +1,7 @@
 use std::clone;
 use std::io::prelude::*;
 use std::net::{TcpListener, TcpStream};
+use std::sync::atomic::AtomicBool;
 use std::{io, thread, time::Duration};
 
 use crate::occupancy;
@@ -26,23 +27,26 @@ fn request_handler(mut stream: TcpStream, request: &String) -> Result<(), EcuErr
     println!("{}, {}", r.0, r.1);
     match r.0.as_str() {
         "GET" => {
-            let mut s = occupancy::device_info();
+            let mut s = "Invalid request".to_string();
             if r.1 > 0 {
                 let p0 = get_request_word(request, 1);
                 match p0.0.as_str() {
                     "DEV" => {
+                        s = occupancy::device_info();
                         println!("Get DeviceInfo: {}", s);
                     }
                     "SENSOR" => {
                         s = {
                             match occupancy::occupancy_status() {
-                                Ok(s) => s.to_string(),
+                                Ok(val) => {
+                                    if val { "Occupied".to_string() } else { "Vacant".to_string() }
+                                }
                                 Err(_) => "Unknown".to_string(),
                             }
                         };
                     }
                     _ => {
-                        println!("Get DeviceInfo: {}", s);
+                        println!("{}", s);
                     }
                 }
             }
@@ -75,7 +79,8 @@ fn handle_client(mut stream: TcpStream) -> Result<(), EcuError> {
 }
 
 pub fn server_init() -> io::Result<()> {
-    let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
+    occupancy::init_led();
+    let listener = TcpListener::bind("0.0.0.0:7878").unwrap();
     let s = listener.accept();
 
     match s {
@@ -86,10 +91,4 @@ pub fn server_init() -> io::Result<()> {
         }
         Err(_) => todo!(),
     }
-
-    // accept connections and process them serially
-    // for stream in listener.incoming() {
-    //     let _ = handle_client(stream?);
-    // }
-    // Ok(())
 }

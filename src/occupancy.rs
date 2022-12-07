@@ -1,7 +1,11 @@
 use std::error::Error;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
+use std::thread;
+use std::time::Duration;
 
-use rppal::gpio::{Gpio};
 use rppal::gpio::Error as OccupancyError;
+use rppal::gpio::Gpio;
 use rppal::system::DeviceInfo;
 
 // Gpio uses BCM pin numbering.
@@ -11,14 +15,13 @@ const GPIO_LED: u8 = 23;
 // BCM GPIO 16 is tied to physical pin 36.
 const GPIO_PIR: u8 = 16;
 
+static pir_status: AtomicBool = AtomicBool::new(true);
+
 pub fn device_info() -> String {
     let d = DeviceInfo::new();
     if d.is_ok() {
         let device = d.unwrap().model().to_string();
-        println!(
-            "Blinking LED based on PIR input in a {}.",
-            device
-        );
+        println!("Device : {}", device);
         return device;
     } else {
         println!("Error: {}", d.unwrap_err());
@@ -26,44 +29,34 @@ pub fn device_info() -> String {
     }
 }
 
-pub fn occupancy_status() -> Result<bool, OccupancyError>{
-    // Set pin 23 as output pin
-    let mut pin_led = Gpio::new()?.get(GPIO_LED)?.into_output();
-
-    // Set pin 16 as input pin
-    let pin_pir = Gpio::new()?.get(GPIO_PIR)?.into_input();
-
-    pin_led.set_low();
-    let mut status = false;
-
-    // Read PIR data and toggle the LED based on the input
-    if pin_pir.is_high() {
-        pin_led.set_high();
-        status = true;
-        // println!("Motion detected");
-    } else {
-        pin_led.set_low();
-        status = false;
-    }
+pub fn occupancy_status() -> Result<bool, OccupancyError> {
+    update_pir_status();
+    let status = pir_status.load(Ordering::SeqCst);
     Ok(status)
 }
 
-pub fn occupancy_manager() -> Result<(), Box<dyn Error>> {
-    // Set pin 23 as output pin
-    let mut pin_led = Gpio::new()?.get(GPIO_LED)?.into_output();
+pub fn update_led(status: bool) {
+    pir_status.store(status, Ordering::SeqCst);
+}
 
-    // Set pin 16 as input pin
-    let pin_pir = Gpio::new()?.get(GPIO_PIR)?.into_input();
-
-    pin_led.set_low();
-
-    loop {
-        // Read PIR data and toggle the LED based on the input
-        if pin_pir.is_high() {
-            pin_led.set_high();
-            // println!("Motion detected");
-        } else {
-            pin_led.set_low();
+pub(crate) fn init_led() {
+    thread::spawn(|| {
+        // Set pin 23 as output pin
+        let mut pin_led = Gpio::new().unwrap().get(GPIO_LED).unwrap().into_output();
+        loop {
+            update_pir_status();
+            if pir_status.load(Ordering::SeqCst) {
+                pin_led.set_high();
+            } else {
+                pin_led.set_low()
+            }
+            thread::sleep(Duration::from_millis(100));
         }
-    }
+    });
+}
+
+fn update_pir_status() {
+    // Set pin 16 as input pin
+    let pin_pir = Gpio::new().unwrap().get(GPIO_PIR).unwrap().into_input();
+    pir_status.store(pin_pir.is_high(), Ordering::SeqCst);
 }
